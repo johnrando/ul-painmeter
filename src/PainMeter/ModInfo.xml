@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xml>
+	<Name value="PainMeter" />
+	<DisplayName value="PainMeter" />
+	<Description value="Shows a zombie's pain meter: how close it is to shrugging off your hits and attacking straight through them. A row under Undead Legacy's target health bar, a bar over the targeted zombie's head, or bars over every zombie in range - all switchable from the 'pm' console command." />
+	<Author value="John Rando" />
+	<Version value="0.0.0.1" />
+	<Website value="" />
+</xml>
