@@ -238,7 +238,7 @@ That restages `dist/PainMeter/`, ready to copy into `Mods/`. To also build the r
 dotnet build src/PainMeter/PainMeter.csproj -c Release -t:Package
 ```
 
-That writes `release/PainMeter-<version>-<date>.zip`, taking the version from `ModInfo.xml`.
+That writes `release/PainMeter-v<version>-<date>.zip`, taking the version from `ModInfo.xml`.
 Neither `dist/` nor `release/` is tracked — the zip is published as a GitHub Release instead.
 
 ## License
