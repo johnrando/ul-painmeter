@@ -29,6 +29,10 @@ namespace PainMeter
 
 		internal readonly float Pain;
 
+		/// <summary>What one pain hit adds for this entity's class; below zero means it never
+		/// takes pain (<c>PainResistPerHit</c> of -1).</summary>
+		internal readonly float PerHit;
+
 		/// <summary>0 to 1: how full the meter draws.</summary>
 		internal readonly float Fill;
 
@@ -44,9 +48,10 @@ namespace PainMeter
 		/// <summary>Nothing to show: no pain and no lockout.</summary>
 		internal readonly bool IsZero;
 
-		private PainState(float _pain, int _attackedTicks)
+		private PainState(float _pain, int _attackedTicks, float _perHit)
 		{
 			Pain = _pain;
+			PerHit = _perHit;
 			Fill = Mathf.Clamp01(_pain / Threshold);
 			OverThreshold = _pain >= Threshold;
 			SecondsUntilBelow = OverThreshold ? (_pain - Threshold) / DecayPerSecond : 0f;
@@ -56,7 +61,19 @@ namespace PainMeter
 
 		internal static PainState Read(EntityAlive _entity)
 		{
-			return new PainState(_entity.painResistPercent, _entity.hasBeenAttackedTime);
+			float perHit = -1f;
+			if (EntityClass.list.TryGetValue(_entity.entityClass, out EntityClass entityClass))
+			{
+				perHit = entityClass.PainResistPerHit;
+			}
+			return new PainState(_entity.painResistPercent, _entity.hasBeenAttackedTime, perHit);
+		}
+
+		/// <summary>Pain hits it takes to reach <paramref name="_level"/> from empty, or 0 when
+		/// the class never takes pain.</summary>
+		internal int HitsTo(float _level)
+		{
+			return PerHit > 0f ? Mathf.CeilToInt(_level / PerHit - 0.0001f) : 0;
 		}
 
 		/// <summary>The fill tint for this level, blended between the two configured colours.</summary>

@@ -142,15 +142,26 @@ namespace PainMeter
 			Setting(text, "range", Number(Settings.Range), "pm range {m}");
 			Setting(text, "hidezero", OnOff(Settings.HideZero), "pm hidezero");
 			Setting(text, "flash", OnOff(Settings.Flash), "pm flash");
+			Setting(text, "scale", Settings.Scale.ToString().ToLowerInvariant(), "pm scale - threshold, full or hits");
 			Setting(text, "timer", Settings.Timer.ToString().ToLowerInvariant(), "pm timer - bar, pips or off");
 			Setting(text, "timer.pips", Settings.TimerPips.ToString(), "pm pips {n}");
 			Setting(text, "size.width", Settings.Width.ToString(), "pm size {w} {h}");
 			Setting(text, "size.height", Settings.Height.ToString(), "pm size {w} {h}");
 			Setting(text, "offset", Number(Settings.HeadOffset), "pm offset {m}");
 			Setting(text, "opacity", Number(Settings.Opacity), "pm opacity {0-1}");
-			Setting(text, "colour.low", BarColour.Format(Settings.ColourLow), "pm colour {low} {high}");
-			Setting(text, "colour.high", BarColour.Format(Settings.ColourHigh), "pm colour {low} {high}");
+			Setting(text, "colour.low", BarColour.Format(Settings.ColourLow), "pm colour {low} {high} {locked}");
+			Setting(text, "colour.high", BarColour.Format(Settings.ColourHigh), "pm colour {low} {high} {locked}");
 			Setting(text, "animals", OnOff(Settings.Animals), "pm animals");
+			Setting(text, "focus", OnOff(Settings.Focus), "pm focus - WhackLash focus pips, locked tint and bonus label");
+			Setting(text, "focus.x", Settings.FocusX.ToString(), "pm focuspos {x} {y} - pips right of / above the bar's end");
+			Setting(text, "focus.y", Settings.FocusY.ToString(), "pm focuspos {x} {y}");
+			Setting(text, "colour.locked", BarColour.Format(Settings.ColourLocked), "pm colour {low} {high} {locked}");
+			Setting(text, "pip.low", BarColour.Format(Settings.PipLow), "pm pipcolour {low} {mid} {high} - focus pips by meter level");
+			Setting(text, "pip.mid", BarColour.Format(Settings.PipMid), "pm pipcolour {low} {mid} {high}");
+			Setting(text, "pip.high", BarColour.Format(Settings.PipHigh), "pm pipcolour {low} {mid} {high}");
+			Setting(text, "colour.timer", BarColour.Format(Settings.ColourTimer), "pm accents {timer} {flash} {mark}");
+			Setting(text, "colour.flash", BarColour.Format(Settings.ColourFlash), "pm accents {timer} {flash} {mark}");
+			Setting(text, "colour.mark", BarColour.Format(Settings.ColourMark), "pm accents {timer} {flash} {mark} - break frame, +N% before break, tick at 1");
 			return text.ToString();
 		}
 
@@ -221,6 +232,8 @@ namespace PainMeter
 				return TryBool(_value, ref Settings.HideZero);
 			case "flash":
 				return TryBool(_value, ref Settings.Flash);
+			case "scale":
+				return TryScale(_value, ref Settings.Scale);
 			case "timer":
 				return TryTimer(_value, ref Settings.Timer);
 			case "timer.pips":
@@ -241,6 +254,30 @@ namespace PainMeter
 				return LoadColour(_value, ref Settings.ColourHigh);
 			case "animals":
 				return TryBool(_value, ref Settings.Animals);
+			case "focus":
+				return TryBool(_value, ref Settings.Focus);
+			case "focus.x":
+				return LoadPixels(_value, ref Settings.FocusX);
+			case "focus.y":
+				return LoadPixels(_value, ref Settings.FocusY);
+			case "colour.locked":
+			case "color.locked":
+				return LoadColour(_value, ref Settings.ColourLocked);
+			case "pip.low":
+				return LoadColour(_value, ref Settings.PipLow);
+			case "pip.mid":
+				return LoadColour(_value, ref Settings.PipMid);
+			case "pip.high":
+				return LoadColour(_value, ref Settings.PipHigh);
+			case "colour.timer":
+			case "color.timer":
+				return LoadColour(_value, ref Settings.ColourTimer);
+			case "colour.flash":
+			case "color.flash":
+				return LoadColour(_value, ref Settings.ColourFlash);
+			case "colour.mark":
+			case "color.mark":
+				return LoadColour(_value, ref Settings.ColourMark);
 			default:
 				return false;
 			}
@@ -278,6 +315,25 @@ namespace PainMeter
 		private static bool LoadCount(string _value, ref int _target, int _min)
 		{
 			if (!TryCount(_value, _min, out int parsed))
+			{
+				return false;
+			}
+			_target = parsed;
+			return true;
+		}
+
+		/// <summary>A signed pixel offset, <see cref="MaxPixels"/> either way. Shared with the console command.</summary>
+		internal static bool TryPixels(string _value, out int _parsed)
+		{
+			return int.TryParse(_value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _parsed)
+				&& _parsed >= -MaxPixels && _parsed <= MaxPixels;
+		}
+
+		internal const int MaxPixels = 200;
+
+		private static bool LoadPixels(string _value, ref int _target)
+		{
+			if (!TryPixels(_value, out int parsed))
 			{
 				return false;
 			}
@@ -337,6 +393,24 @@ namespace PainMeter
 			}
 			_target = parsed;
 			return true;
+		}
+
+		internal static bool TryScale(string _value, ref MeterScale _target)
+		{
+			switch (_value.ToLowerInvariant())
+			{
+			case "threshold":
+				_target = MeterScale.Threshold;
+				return true;
+			case "full":
+				_target = MeterScale.Full;
+				return true;
+			case "hits":
+				_target = MeterScale.Hits;
+				return true;
+			default:
+				return false;
+			}
 		}
 
 		internal static bool TryTimer(string _value, ref TimerStyle _target)

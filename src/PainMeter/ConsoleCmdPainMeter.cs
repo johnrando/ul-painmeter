@@ -75,6 +75,13 @@ namespace PainMeter
 				Output("Stagger flash " + OnOff(Settings.Flash) + ".");
 				return;
 
+			case "scale":
+				Settings.Scale = Settings.Scale == MeterScale.Threshold ? MeterScale.Full
+					: Settings.Scale == MeterScale.Full ? MeterScale.Hits : MeterScale.Threshold;
+				Config.Save();
+				Output("Meter scale: " + ScaleLine());
+				return;
+
 			case "timer":
 				Settings.Timer = Settings.Timer == TimerStyle.Bar ? TimerStyle.Pips
 					: Settings.Timer == TimerStyle.Pips ? TimerStyle.Off : TimerStyle.Bar;
@@ -111,6 +118,27 @@ namespace PainMeter
 					: "Only zombies and bandits are metered.");
 				return;
 
+			case "focus":
+				Settings.Focus = !Settings.Focus;
+				Config.Save();
+				Output("WhackLash focus pips " + OnOff(Settings.Focus) + "."
+					+ (Settings.Focus && !WhackLashLink.Found
+						? " Saved, but WhackLash is not installed, so there is no focus meter to draw." : ""));
+				return;
+
+			case "focuspos":
+				SetFocusPos(_params);
+				return;
+
+			case "pipcolour":
+			case "pipcolor":
+				SetPipColour(_params);
+				return;
+
+			case "accents":
+				SetAccents(_params);
+				return;
+
 			case "info":
 				OutputInfo();
 				return;
@@ -122,8 +150,8 @@ namespace PainMeter
 
 			default:
 				Output("Unknown option '" + _params[0]
-					+ "'. Try: pm [on|off|bar|target|all|range|hidezero|flash|timer|pips|size|offset"
-					+ "|opacity|colour|animals|info|reset]");
+					+ "'. Try: pm [on|off|bar|target|all|range|hidezero|flash|scale|timer|pips|size|offset"
+					+ "|opacity|colour|animals|focus|focuspos|pipcolour|accents|info|reset]");
 				return;
 			}
 		}
@@ -132,19 +160,118 @@ namespace PainMeter
 		{
 			Output(_header);
 			Switch("pm on|off", EnabledChoices(), "show how close a zombie is to attacking through hits");
-			Switch("pm bar", OnOffChoices(Settings.HealthBarRow), "row under Undead Legacy's target health bar");
+			Switch("pm bar", OnOffChoices(Settings.HealthBarRow), "strip along the bottom of Undead Legacy's target health bar");
 			Switch("pm target", OnOffChoices(Settings.OverheadTarget), "bar over the head of the zombie under the crosshair");
 			Switch("pm all", OnOffChoices(Settings.OverheadAll), "bars over every zombie in range");
 			Line("pm range {m}", RangeLine());
 			Switch("pm hidezero", OnOffChoices(Settings.HideZero), "hide a meter that reads zero");
 			Switch("pm flash", OnOffChoices(Settings.Flash), "flash while the 0.5 s stagger lockout runs");
+			Switch("pm scale", ScaleChoices(), "what the bar spans: 0-1, 0-3 with a tick at 1, or hits");
 			Switch("pm timer", TimerChoices(), "how long until the meter drops back below 1");
 			Line("pm pips {n}", PipsLine());
 			Line("pm size {w} {h}", SizeLine());
 			Line("pm offset {m}", OffsetLine());
 			Line("pm opacity {0-1}", Config.Number(Settings.Opacity));
-			Line("pm colour {low} {high}", ColourLine());
+			Line("pm colour {l} {h} {lock}", ColourLine());
 			Switch("pm animals", OnOffChoices(Settings.Animals), "hostile animals too, not just zombies");
+			Switch("pm focus", OnOffChoices(Settings.Focus), "WhackLash's focus meter: pips, locked tint, bonus"
+				+ (WhackLashLink.Found ? "" : " (needs WhackLash)"));
+			Line("pm focuspos {x} {y}", FocusPosLine());
+			Line("pm pipcolour {l} {m} {h}", PipColourLine());
+			Line("pm accents {t} {f} {m}", AccentsLine());
+		}
+
+		private static void SetPipColour(List<string> _params)
+		{
+			if (_params.Count != 4)
+			{
+				Output("Usage: pm pipcolour {low} {mid} {high} - currently: " + PipColourLine());
+				return;
+			}
+
+			if (!TryColour(_params[1], "low pip colour", out Color32 low)
+				|| !TryColour(_params[2], "mid pip colour", out Color32 mid)
+				|| !TryColour(_params[3], "high pip colour", out Color32 high))
+			{
+				return;
+			}
+
+			Settings.PipLow = low;
+			Settings.PipMid = mid;
+			Settings.PipHigh = high;
+			Config.Save();
+			Output("Pip colours: " + PipColourLine());
+		}
+
+		private static void SetAccents(List<string> _params)
+		{
+			if (_params.Count != 4)
+			{
+				Output("Usage: pm accents {timer} {flash} {mark} - currently: " + AccentsLine());
+				return;
+			}
+
+			if (!TryColour(_params[1], "timer colour", out Color32 timer)
+				|| !TryColour(_params[2], "flash colour", out Color32 flash)
+				|| !TryColour(_params[3], "mark colour", out Color32 mark))
+			{
+				return;
+			}
+
+			Settings.ColourTimer = timer;
+			Settings.ColourFlash = flash;
+			Settings.ColourMark = mark;
+			Config.Save();
+			Output("Accents: " + AccentsLine());
+		}
+
+		private static string PipColourLine()
+		{
+			return BarColour.Format(Settings.PipLow) + " at empty / "
+				+ BarColour.Format(Settings.PipMid) + " midway / "
+				+ BarColour.Format(Settings.PipHigh) + " at the cap (focus pips by level)";
+		}
+
+		private static string AccentsLine()
+		{
+			return BarColour.Format(Settings.ColourTimer) + " timer / "
+				+ BarColour.Format(Settings.ColourFlash) + " flash / "
+				+ BarColour.Format(Settings.ColourMark) + " break frame, bonus and tick";
+		}
+
+		private static void SetFocusPos(List<string> _params)
+		{
+			if (_params.Count != 3)
+			{
+				Output("Usage: pm focuspos {x} {y} - currently: " + FocusPosLine());
+				return;
+			}
+
+			if (!TryPixels(_params[1], "x offset", out int x) || !TryPixels(_params[2], "y offset", out int y))
+			{
+				return;
+			}
+
+			Settings.FocusX = x;
+			Settings.FocusY = y;
+			Config.Save();
+			Output("Focus pips: " + FocusPosLine());
+		}
+
+		private static bool TryPixels(string _value, string _what, out int _parsed)
+		{
+			if (Config.TryPixels(_value, out _parsed))
+			{
+				return true;
+			}
+			Output("'" + _value + "' is not a valid " + _what + " - whole pixels from -"
+				+ Config.MaxPixels + " to " + Config.MaxPixels + ".");
+			return false;
+		}
+
+		private static string FocusPosLine()
+		{
+			return Settings.FocusX + " " + Settings.FocusY + " px: pips right of / above the bar's end";
 		}
 
 		/// <summary>The header says whether anything moved: typing the state you were already in
@@ -171,6 +298,7 @@ namespace PainMeter
 			OutputMenu("PainMeter is " + OnOff(Settings.Enabled));
 			Line("settings file", Config.Status);
 			Line("Undead Legacy", UndeadLegacyInfo.Status);
+			Line("WhackLash", WhackLashLink.Status);
 			Line("overhead frame hook", Patches.OverheadUpdateStatus);
 			Line("overhead cleanup hook", Patches.OverheadCleanupStatus);
 			Line("health-bar row (init)", Patches.HealthBarInitStatus);
@@ -192,10 +320,10 @@ namespace PainMeter
 			}
 		}
 
-		/// <summary>Labels padded to the longest one ("pm colour {low} {high}") so the block shares a column.</summary>
+		/// <summary>Labels padded to the longest one ("pm colour {l} {h} {lock}") so the block shares a column.</summary>
 		private static void Line(string _label, string _value)
 		{
-			Output("  " + _label.PadRight(22) + ": " + _value);
+			Output("  " + _label.PadRight(24) + ": " + _value);
 		}
 
 		/// <summary>A switch line: the choices padded to the widest set, then what the switch is for.</summary>
@@ -298,11 +426,12 @@ namespace PainMeter
 			Output("Opacity: " + Config.Number(Settings.Opacity));
 		}
 
+		/// <summary>The locked colour is optional: without WhackLash it never shows.</summary>
 		private static void SetColour(List<string> _params)
 		{
-			if (_params.Count != 3)
+			if (_params.Count != 3 && _params.Count != 4)
 			{
-				Output("Usage: pm colour {low} {high} - currently: " + ColourLine());
+				Output("Usage: pm colour {low} {high} [{locked}] - currently: " + ColourLine());
 				return;
 			}
 
@@ -311,9 +440,15 @@ namespace PainMeter
 			{
 				return;
 			}
+			Color32 locked = Settings.ColourLocked;
+			if (_params.Count == 4 && !TryColour(_params[3], "locked colour", out locked))
+			{
+				return;
+			}
 
 			Settings.ColourLow = low;
 			Settings.ColourHigh = high;
+			Settings.ColourLocked = locked;
 			Config.Save();
 			Output("Colours: " + ColourLine());
 		}
@@ -369,6 +504,14 @@ namespace PainMeter
 			return Choices(Mark("on", _on), Mark("off", !_on));
 		}
 
+		private static string ScaleChoices()
+		{
+			return Choices(
+				Mark("threshold", Settings.Scale == MeterScale.Threshold),
+				Mark("full", Settings.Scale == MeterScale.Full),
+				Mark("hits", Settings.Scale == MeterScale.Hits));
+		}
+
 		private static string TimerChoices()
 		{
 			return Choices(
@@ -397,6 +540,20 @@ namespace PainMeter
 			return Config.Number(Settings.HeadOffset) + " m above the head";
 		}
 
+		private static string ScaleLine()
+		{
+			switch (Settings.Scale)
+			{
+			case MeterScale.Full:
+				return "0 to 3, the whole number, with a tick where 1 falls";
+			case MeterScale.Hits:
+				return "one segment per pain hit of that zombie's class; the first segment in the "
+					+ "high colour is the hit that takes it past 1";
+			default:
+				return "0 to 1, full where hits stop staggering";
+			}
+		}
+
 		private static string TimerLine()
 		{
 			switch (Settings.Timer)
@@ -413,7 +570,8 @@ namespace PainMeter
 		private static string ColourLine()
 		{
 			return BarColour.Format(Settings.ColourLow) + " at empty / "
-				+ BarColour.Format(Settings.ColourHigh) + " at full (r,g,b)";
+				+ BarColour.Format(Settings.ColourHigh) + " at full / "
+				+ BarColour.Format(Settings.ColourLocked) + " locked (r,g,b)";
 		}
 
 		private static void Output(string _line)
@@ -433,8 +591,8 @@ namespace PainMeter
 
 		public override string getHelp()
 		{
-			return "Usage: pm [on|off|bar|target|all|range {m}|hidezero|flash|timer|pips {n}"
-				+ "|size {w} {h}|offset {m}|opacity {0-1}|colour {low} {high}|animals|info|reset]"
+			return "Usage: pm [on|off|bar|target|all|range {m}|hidezero|flash|scale|timer|pips {n}"
+				+ "|size {w} {h}|offset {m}|opacity {0-1}|colour {low} {high} [{locked}]|animals|focus|info|reset]"
 				+ "\r\n\r\nEvery zombie carries a hidden pain meter. Each hit that makes it flinch "
 				+ "adds to it - about 0.55 for an ordinary zombie, 0.7 feral, 0.9 radiated - and it "
 				+ "drains at 0.2 a second. Below 1, every such hit staggers the zombie and for half "
@@ -464,12 +622,34 @@ namespace PainMeter
 				+ "negative allowed), and 'pm opacity' how solid it is (0.85)."
 				+ "\r\n\r\n'pm hidezero', on by default, hides any meter that reads zero, so an "
 				+ "untouched zombie carries no bar; off draws it empty. 'pm flash' toggles the "
-				+ "flash during the half-second lockout. 'pm timer' cycles how the time-to-drop is "
+				+ "flash during the half-second lockout."
+				+ "\r\n\r\n'pm scale' cycles what the bar spans. 'threshold', the default, runs 0 to 1: "
+				+ "full is the point at which hits stop staggering. 'full' runs 0 to 3, the whole "
+				+ "number, with a tick where 1 falls, so the overshoot is visible as a level rather "
+				+ "than only as the timer. 'hits' splits the bar into one segment per pain hit of "
+				+ "that zombie's class (five for a 0.7 feral, four for a 0.9 radiated), each filling "
+				+ "as the hit lands and draining as the number decays; segments in the low colour "
+				+ "are hits it will still stagger through, and the first in the high colour is the "
+				+ "hit that takes it past 1. The per-hit amount is fixed by the zombie's class - your "
+				+ "weapon and whether it was a power attack make no difference, so the count is "
+				+ "known before you swing. 'pm timer' cycles how the time-to-drop is "
 				+ "shown once the meter is full: a thin draining bar under the meter, one pip per "
 				+ "second remaining ('pm pips' sets how many pips there are, 10 by default, which "
 				+ "covers the cap), or off. 'pm colour' takes the empty and full tints as r,g,b."
 				+ "\r\n\r\n'pm animals' extends all of it to hostile animals - dogs, vultures, bears "
 				+ "- which run on the same rules. Off by default: zombies and bandits only."
+				+ "\r\n\r\n'pm focus', on by default, draws WhackLash's focus meter when that mod is "
+				+ "installed and does nothing otherwise. WhackLash builds a meter on every enemy you "
+				+ "keep hitting - 1 point a melee hit, less for arrows and bullets - draining at the "
+				+ "same 0.2 a second as the pain meter, and once it reaches WhackLash's break point "
+				+ "(3 by default) it pins the pain meter just under 1, so the zombie cannot attack "
+				+ "through your hits until it drains back. PainMeter shows that as a row of pips "
+				+ "under the bar, one per point up to WhackLash's cap, the last lit one draining "
+				+ "visibly; the pip at the break point wears a frame. Once broken the bar and the "
+				+ "pips switch to the locked colour (the third argument of 'pm colour', a blue by "
+				+ "default) and the stagger flash stops, because the pain number is being held and "
+				+ "no longer tells you anything. A '+N%' to the right of the bar is the damage bonus "
+				+ "WhackLash gives your next hit."
 				+ "\r\n\r\nEvery setting here takes effect immediately and is written straight to a "
 				+ "settings file, so it survives a restart - and survives updating the mod, because "
 				+ "the file lives in the game's user data folder next to Saves rather than in Mods. "

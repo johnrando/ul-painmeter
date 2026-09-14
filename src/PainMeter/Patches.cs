@@ -56,6 +56,7 @@ namespace PainMeter
 		private static void ApplyPatches()
 		{
 			UndeadLegacyInfo.Report();
+			WhackLashLink.Resolve();
 
 			Harmony harmony = new Harmony(HarmonyId);
 			ApplyOverheadHooks(harmony);

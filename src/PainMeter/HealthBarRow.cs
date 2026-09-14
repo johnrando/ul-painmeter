@@ -4,20 +4,26 @@ using UnityEngine;
 namespace PainMeter
 {
 	/// <summary>
-	/// The row under Undead Legacy's target health bar. One widget, parented under UL's
-	/// controller rect and sized to its bar (456 wide, centred at x 249 inside a 476 by 30 rect
-	/// - see UL's windows.xml), shown for exactly the target UL is showing. The one place that
-	/// knows how UL's bar is put together.
+	/// A strip along the bottom edge of Undead Legacy's target health bar, with WhackLash's focus
+	/// pips off its right end. One widget, parented under UL's controller rect and sized to its
+	/// bar (456 wide, centred at x 249 inside a 476 by 30 rect - see UL's windows.xml), shown for
+	/// exactly the target UL is showing. Everything stays inside the 30 px rect because UL's
+	/// debuff grid (Bleed and the like) starts at y -35 and would draw over anything below it. The
+	/// one place that knows how UL's bar is put together.
 	/// </summary>
 	internal static class HealthBarRow
 	{
 		/// <summary>Matches UL's bar content width.</summary>
 		private const int Width = 456;
 
-		private const int Height = 8;
+		private const int Height = 4;
 
-		/// <summary>UL's bar centre is at x 249; the bar rect is 30 tall, so the row sits just under it.</summary>
-		private static readonly Vector3 RowPosition = new Vector3(249f, -36f, 0f);
+		/// <summary>Side of one focus pip: nearly UL's 30 px bar height, so it reads at a glance.</summary>
+		private const int PipSize = 24;
+
+		/// <summary>UL's bar centre is at x 249. At y -25 the 4 px strip spans -23..-27 and the 2 px
+		/// timer under it ends at -30, the rect's bottom edge.</summary>
+		private static readonly Vector3 RowPosition = new Vector3(249f, -25f, 0f);
 
 		/// <summary>UL's own sprites use 2 and 3.</summary>
 		private const int Depth = 5;
@@ -105,12 +111,14 @@ namespace PainMeter
 
 			PainState state = PainState.Read(target);
 			Counters.TrackSeen(target.entityId, state);
-			if (Settings.HideZero && state.IsZero)
+			WhackLashLink.TryRead(target.entityId, out FocusState focus);
+			if (Settings.HideZero && state.IsZero && focus.IsZero)
 			{
 				HideRow("hidden - " + Name(target) + " reads zero");
 				return;
 			}
-			row.Apply(state, Width, Height, Settings.Opacity);
+			row.Apply(state, focus, Width, Height, Settings.Opacity,
+				new Vector2(Width * 0.5f + Settings.FocusX, Settings.FocusY), PipSize, _centreFocus: false);
 			row.Show();
 			Counters.BarRowShowing = "showing " + Name(target) + " at " + state.Pain.ToString("0.00");
 		}

@@ -76,7 +76,8 @@ namespace PainMeter
 		{
 			PainState state = PainState.Read(_entity);
 			Counters.TrackSeen(_entity.entityId, state);
-			if (Settings.HideZero && state.IsZero)
+			WhackLashLink.TryRead(_entity.entityId, out FocusState focus);
+			if (Settings.HideZero && state.IsZero && focus.IsZero)
 			{
 				return;
 			}
@@ -96,7 +97,11 @@ namespace PainMeter
 			local.z = 0f;
 
 			PainWidget widget = WidgetPool.Acquire(_entity.entityId, _xui, BaseDepth);
-			widget.Apply(state, Settings.Width, Settings.Height, Settings.Opacity);
+			// Pips ride above the bar, centred on it, one gap clear of its top edge.
+			int pipSize = Settings.Height + 4;
+			const float gap = 2f;
+			widget.Apply(state, focus, Settings.Width, Settings.Height, Settings.Opacity,
+				new Vector2(0f, Settings.Height * 0.5f + gap + pipSize * 0.5f), pipSize, _centreFocus: true);
 			widget.SetLocalPosition(local);
 			widget.Show();
 		}
