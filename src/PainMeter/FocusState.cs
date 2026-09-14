@@ -36,8 +36,12 @@ namespace PainMeter
 			BonusPercent = _bonusPercent > 0f ? _bonusPercent : 0f;
 		}
 
-		/// <summary>WhackLash is holding this entity's pain meter down.</summary>
-		internal bool Broken => Break >= 0f && Points >= Break;
+		/// <summary>
+		/// WhackLash is holding this entity's pain meter down. A zero meter is never broken: the
+		/// <c>default</c> state (no WhackLash, focus off, nothing built) has Break and Points both
+		/// at 0, and 0 >= 0 must not read as locked or every bar would tint <see cref="Settings.ColourLocked"/>.
+		/// </summary>
+		internal bool Broken => Points > 0f && Break >= 0f && Points >= Break;
 
 		/// <summary>The meter reads zero: nothing to draw.</summary>
 		internal bool IsZero => Points <= 0f;
